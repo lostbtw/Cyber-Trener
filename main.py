@@ -1,6 +1,6 @@
 import cv2
 import time
-from camera import CalibratedCamera, resize_to_height
+from calibratedCamera import CalibratedCamera, resize_to_height
 
 # ================= CONFIGURATION =================
 # Adjust these IDs based on which is which on your system
@@ -24,8 +24,8 @@ if __name__ == "__main__":
     time.sleep(1.0)
 
     while True:
-        frame_side = cam_side.get_frame()
-        frame_front = cam_front.get_frame()
+        frame_side, ts_side = cam_side.get_frame()
+        frame_front, ts_front = cam_front.get_frame()
 
         if frame_side is None or frame_front is None:
             continue
@@ -35,9 +35,15 @@ if __name__ == "__main__":
 
         combined_view = cv2.hconcat([view_side, view_front])
 
+        # Display camera labels with timestamps
+        label_side = f"SIDE CAMERA | ts: {ts_side:.3f}" if ts_side else "SIDE CAMERA"
+        label_front = (
+            f"FRONT CAMERA | ts: {ts_front:.3f}" if ts_front else "FRONT CAMERA"
+        )
+
         cv2.putText(
             combined_view,
-            "SIDE CAMERA",
+            label_side,
             (10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
@@ -48,7 +54,7 @@ if __name__ == "__main__":
         width_side = view_side.shape[1]
         cv2.putText(
             combined_view,
-            "FRONT CAMERA",
+            label_front,
             (width_side + 10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,

@@ -1,16 +1,17 @@
-import cv2
-import numpy as np
 import threading
 import time
 
+import cv2
+import numpy as np
+from cameraStream import CameraStream
+
 
 class CalibratedCamera:
-    """A camera class that applies lens distortion correction using calibration data."""
-
     def __init__(self, source_id, calib_file_path=None, name="Camera"):
         self.name = name
         self.source_id = source_id
-        self.capture = cv2.VideoCapture(source_id)
+
+        self.stream = CameraStream(source_id, name)
 
         self.mtx = None
         self.dist = None
@@ -21,13 +22,15 @@ class CalibratedCamera:
 
         if calib_file_path:
             self._load_calibration(calib_file_path)
+
         self.current_frame = None
-        self.running = False
+        self.timestamp = None
         self.lock = threading.Lock()
-        self.thread = None
+
+        self.running = False
+        self.process_thread = None
 
     def _load_calibration(self, calib_file_path):
-        """Load calibration data from .npz file."""
         try:
             with np.load(calib_file_path) as data:
                 self.mtx = data["mtx"]
@@ -40,7 +43,6 @@ class CalibratedCamera:
             )
 
     def _init_undistort_maps(self, frame_shape):
-        """Initialize undistortion maps for the given frame size."""
         h, w = frame_shape[:2]
         if self.mtx is not None:
             self.new_camera_matrix, self.roi = cv2.getOptimalNewCameraMatrix(
@@ -51,7 +53,9 @@ class CalibratedCamera:
             )
 
     def _apply_calibration(self, frame):
-        """Apply lens distortion correction to frame."""
+        if frame is None:
+            return None
+
         if self.mapx is None:
             self._init_undistort_maps(frame.shape)
 
@@ -66,55 +70,59 @@ class CalibratedCamera:
         return frame
 
     def start(self):
-        """Start the camera capture thread."""
         if self.running:
-            return
-        self.running = True
-        self.thread = threading.Thread(target=self._update_loop, daemon=True)
-        self.thread.start()
+            return self
 
-    def _update_loop(self):
-        """Background thread that continuously captures and processes frames."""
+        self.stream.start()
+
+        self.running = True
+        self.process_thread = threading.Thread(target=self._process_loop, daemon=True)
+        self.process_thread.start()
+        return self
+
+    def _process_loop(self):
+        last_timestamp = None
+
         while self.running:
-            ret, frame = self.capture.read()
-            if not ret:
-                time.sleep(0.01)
+            frame, timestamp = self.stream.get_frame()
+
+            if frame is None or timestamp == last_timestamp:
+                time.sleep(0.001)
                 continue
+
+            last_timestamp = timestamp
+
             if self.mtx is not None:
                 frame = self._apply_calibration(frame)
 
             with self.lock:
                 self.current_frame = frame
+                self.timestamp = timestamp
 
     def get_frame(self):
-        """Get the current calibrated frame."""
         with self.lock:
-            return self.current_frame
+            return self.current_frame, self.timestamp
 
     def read(self):
-        """Read a single frame (blocking, without threading)."""
-        ret, frame = self.capture.read()
+        ret, frame = self.stream.capture.read()
+        timestamp = time.time() if ret else None
         if ret and self.mtx is not None:
             frame = self._apply_calibration(frame)
-        return ret, frame
+        return ret, frame, timestamp
 
     def stop(self):
-        """Stop the camera capture thread and release resources."""
         self.running = False
-        if self.thread is not None:
-            self.thread.join(timeout=1.0)
-        self.capture.release()
+        if self.process_thread is not None:
+            self.process_thread.join(timeout=1.0)
+        self.stream.stop()
 
     def is_opened(self):
-        """Check if the camera is opened."""
-        return self.capture.isOpened()
+        return self.stream.is_opened()
 
     def __enter__(self):
-        """Context manager entry."""
-        return self
+        return self.start()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
         self.stop()
 
 
@@ -134,7 +142,6 @@ def show_camera(
         if not ret:
             break
 
-        # Resize for display
         if target_height:
             frame = resize_to_height(frame, target_height)
 

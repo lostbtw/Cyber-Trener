@@ -3,7 +3,7 @@ import time
 
 import cv2
 import numpy as np
-from cameraStream import CameraStream
+from camera_stream import CameraStream
 
 
 class CalibratedCamera:
@@ -86,7 +86,7 @@ class CalibratedCamera:
         while self.running:
             frame, timestamp = self.stream.get_frame()
 
-            if frame is None or timestamp == last_timestamp:
+            if frame is None or timestamp is None or timestamp == last_timestamp:
                 time.sleep(0.001)
                 continue
 
@@ -138,7 +138,7 @@ def show_camera(
     print(f"Showing camera '{window_name}'. Press 'q' to exit.")
 
     while True:
-        ret, frame = cam.read()
+        ret, frame, _ = cam.read()
         if not ret:
             break
 

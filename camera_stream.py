@@ -26,6 +26,7 @@ class CameraStream:
         while self.running:
             ret, frame = self.capture.read()
             if not ret:
+                time.sleep(0.01)
                 continue
 
             timestamp = time.time()

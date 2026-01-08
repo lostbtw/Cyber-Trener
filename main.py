@@ -1,6 +1,6 @@
 import cv2
 import time
-from calibratedCamera import CalibratedCamera, resize_to_height
+from calibrated_camera import CalibratedCamera, resize_to_height
 
 # ================= CONFIGURATION =================
 # Adjust these IDs based on which is which on your system

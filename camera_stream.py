@@ -1,15 +1,18 @@
 import cv2
 import threading
 import time
+from collections import deque
 
 
 class CameraStream:
-    def __init__(self, source_id, name="Camera"):
+    def __init__(self, source_id, name="Camera", buffer_size=30):
         self.name = name
         self.source_id = source_id
         self.capture = cv2.VideoCapture(source_id)
         self.current_frame = None
         self.timestamp = None
+        self.frame_buffer = deque(maxlen=buffer_size)
+        self.buffer_lock = threading.Lock()
         self.running = False
         self.lock = threading.Lock()
         self.thread = None
@@ -35,9 +38,23 @@ class CameraStream:
                 self.current_frame = frame
                 self.timestamp = timestamp
 
+            with self.buffer_lock:
+                self.frame_buffer.append((timestamp, frame))
+
     def get_frame(self):
         with self.lock:
             return self.current_frame, self.timestamp
+
+    def get_nearest_frame(self, target_timestamp):
+        with self.buffer_lock:
+            if not self.frame_buffer:
+                return None, None, None
+
+            nearest = min(self.frame_buffer, key=lambda x: abs(x[0] - target_timestamp))
+            timestamp, frame = nearest
+            time_diff = abs(timestamp - target_timestamp)
+
+            return frame, timestamp, time_diff
 
     def stop(self):
         self.running = False

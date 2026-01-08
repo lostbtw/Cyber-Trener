@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 VIDEO_PATH = "example_video.mp4"  # path to the file with calibration video
-# use calibration_pattern.png in tool dirrectory to create calibration video
+# use calibration_pattern.png in tool directory to create calibration video
 CHESSBOARD_SIZE = (9, 6)
 # square size in mm
 SQUARE_SIZE = 36
@@ -43,7 +43,7 @@ def run_calibration():
 
         ret, corners = cv2.findChessboardCorners(gray, CHESSBOARD_SIZE, None)
 
-        if ret == True:
+        if ret:
             objpoints.append(objp)
 
             corners2 = cv2.cornerSubPix(

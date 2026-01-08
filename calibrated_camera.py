@@ -1,5 +1,6 @@
 import threading
 import time
+from collections import deque
 
 import cv2
 import numpy as np
@@ -7,12 +8,10 @@ from camera_stream import CameraStream
 
 
 class CalibratedCamera:
-    def __init__(self, source_id, calib_file_path=None, name="Camera"):
+    def __init__(self, source_id, calib_file_path=None, name="Camera", buffer_size=30):
         self.name = name
         self.source_id = source_id
-
-        self.stream = CameraStream(source_id, name)
-
+        self.stream = CameraStream(source_id, name, buffer_size)
         self.mtx = None
         self.dist = None
         self.new_camera_matrix = None
@@ -26,7 +25,8 @@ class CalibratedCamera:
         self.current_frame = None
         self.timestamp = None
         self.lock = threading.Lock()
-
+        self.frame_buffer = deque(maxlen=buffer_size)
+        self.buffer_lock = threading.Lock()
         self.running = False
         self.process_thread = None
 
@@ -61,7 +61,6 @@ class CalibratedCamera:
 
         if self.mapx is not None:
             frame = cv2.remap(frame, self.mapx, self.mapy, cv2.INTER_LINEAR)
-            # Crop to remove black borders
             if self.roi is not None:
                 x, y, w, h = self.roi
                 if w > 0 and h > 0:
@@ -74,7 +73,6 @@ class CalibratedCamera:
             return self
 
         self.stream.start()
-
         self.running = True
         self.process_thread = threading.Thread(target=self._process_loop, daemon=True)
         self.process_thread.start()
@@ -99,9 +97,23 @@ class CalibratedCamera:
                 self.current_frame = frame
                 self.timestamp = timestamp
 
+            with self.buffer_lock:
+                self.frame_buffer.append((timestamp, frame))
+
     def get_frame(self):
         with self.lock:
             return self.current_frame, self.timestamp
+
+    def get_nearest_frame(self, target_timestamp):
+        with self.buffer_lock:
+            if not self.frame_buffer:
+                return None, None, None
+
+            nearest = min(self.frame_buffer, key=lambda x: abs(x[0] - target_timestamp))
+            timestamp, frame = nearest
+            time_diff = abs(timestamp - target_timestamp)
+
+            return frame, timestamp, time_diff
 
     def read(self):
         ret, frame = self.stream.capture.read()

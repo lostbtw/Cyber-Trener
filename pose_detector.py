@@ -6,7 +6,6 @@ from mediapipe.tasks.python import vision
 
 
 class PoseDetector:
-    # Pose landmark indices (33 total)
     POSE_LANDMARKS = {
         "nose": 0,
         "left_eye_inner": 1,
@@ -97,7 +96,10 @@ class PoseDetector:
         self.landmarker = vision.PoseLandmarker.create_from_options(options)
 
         print(
-            f"[PoseDetector] Initialized with min_detection_confidence={min_detection_confidence}"
+            f"[PoseDetector] Initialized with "
+            f"min_detection_confidence={min_detection_confidence}, "
+            f"min_tracking_confidence={min_tracking_confidence}, "
+            f"num_poses={num_poses}"
         )
 
     def detect(self, frame):
@@ -186,9 +188,20 @@ class PoseDetector:
         return frame
 
     def calculate_angle(self, p1, p2, p3):
-        a = np.array([p1["x"], p1["y"], p1["z"]])
-        b = np.array([p2["x"], p2["y"], p2["z"]])
-        c = np.array([p3["x"], p3["y"], p3["z"]])
+        if isinstance(p1, np.ndarray):
+            a = p1
+        else:
+            a = np.array([p1["x"], p1["y"], p1["z"]], dtype=float)
+
+        if isinstance(p2, np.ndarray):
+            b = p2
+        else:
+            b = np.array([p2["x"], p2["y"], p2["z"]], dtype=float)
+
+        if isinstance(p3, np.ndarray):
+            c = p3
+        else:
+            c = np.array([p3["x"], p3["y"], p3["z"]], dtype=float)
 
         ba = a - b
         bc = c - b

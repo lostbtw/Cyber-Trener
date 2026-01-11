@@ -4,7 +4,7 @@ from collections import deque
 
 import cv2
 import numpy as np
-from camera_stream import CameraStream
+from .camera_stream import CameraStream
 
 
 class CalibratedCamera:

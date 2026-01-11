@@ -1,8 +1,7 @@
 import cv2
 from cyber_trener_api import CyberTrener, get_elbow_angles
-from calibrated_camera import resize_to_height
+from utils.calibrated_camera import resize_to_height
 
-# ================= CONFIGURATION =================
 SRC_FRONT = 0  # Front camera ID
 SRC_SIDE = 1  # Side camera ID
 MAX_SYNC_DIFF_MS = 40

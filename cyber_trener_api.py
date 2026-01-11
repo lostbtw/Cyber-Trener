@@ -2,9 +2,9 @@ import time
 import cv2
 import numpy as np
 
-from calibrated_camera import CalibratedCamera
-from camera_synchronizer import CameraSynchronizer
-from pose_detector import PoseDetector
+from utils.calibrated_camera import CalibratedCamera
+from utils.camera_synchronizer import CameraSynchronizer
+from utils.pose_detector import PoseDetector
 
 # Landmark ID to name mapping
 LANDMARK_NAMES = {
